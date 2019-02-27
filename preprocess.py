@@ -10,8 +10,8 @@ PAD_token = 0  # Used for padding short sentences
 SOS_token = 1  # Start-of-sentence token
 EOS_token = 2  # End-of-sentence token
 
-MAX_LENGTH = 10  # Maximum sentence length to consider
-MIN_COUNT = 3    # Minimum word count threshold for trimming
+MAX_LENGTH = 80  # Maximum sentence length to consider
+MIN_COUNT = 5    # Minimum word count threshold for trimming
 
 class Voc:
     def __init__(self, name):
@@ -83,7 +83,8 @@ def readVocs(datafile, corpus_name):
     lines = open(datafile, encoding='utf-8').\
         read().strip().split('\n')
     # Split every line into pairs and normalize
-    pairs = [[normalizeString(s) for s in l.split('\t')] for l in lines]
+    #pairs = [[normalizeString(s) for s in l.split('\t')] for l in lines]
+    pairs = [[s for s in l.split('\t')] for l in lines]
     voc = Voc(corpus_name)
     return voc, pairs
 
@@ -189,9 +190,14 @@ def batch2TrainData(voc, pair_batch):
 
 if __name__ == '__main__':
     
-    corpus_name = "cornell-movie-dialogs-corpus"
+    #corpus_name = "cornell-movie-dialogs-corpus"
+    #corpus = os.path.join("../../public_data", corpus_name)
+    #datafile = os.path.join(corpus, "formatted_movie_lines.txt")
+    
+    corpus_name = "lic2019"
     corpus = os.path.join("../../public_data", corpus_name)
-    datafile = os.path.join(corpus, "formatted_movie_lines.txt")
+    datafile = os.path.join(corpus, "formatted_train_part.txt")
+    
     # Load/Assemble voc and pairs
     save_dir = os.path.join("data", "save")
     voc, pairs = loadPrepareData(corpus, corpus_name, datafile, save_dir)

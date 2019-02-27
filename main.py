@@ -16,18 +16,22 @@ if __name__ == '__main__':
     eval_ = True
     
     # Load data
-    corpus_name = "cornell-movie-dialogs-corpus"
+    #corpus_name = "cornell-movie-dialogs-corpus"
+    #corpus = os.path.join("../../public_data", corpus_name)
+    #datafile = os.path.join(corpus, "formatted_movie_lines.txt")
+    
+    corpus_name = "lic2019"
     corpus = os.path.join("../../public_data", corpus_name)
-    datafile = os.path.join(corpus, "formatted_movie_lines.txt")
+    datafile = os.path.join(corpus, "formatted_train_part.txt")
     # Load/Assemble voc and pairs
-    save_dir = os.path.join("data", "save")
+    save_dir = 'model/'
     voc, pairs = loadPrepareData(corpus, corpus_name, datafile, save_dir)
     
     # Trim voc and pairs
     pairs = trimRareWords(voc, pairs, MIN_COUNT)
 
     # Configure models
-    model_name = 'cb_model'
+    model_name = ''
     
     attn_model = 'dot'
     #attn_model = 'general'
@@ -43,7 +47,7 @@ if __name__ == '__main__':
     checkpoint = None
     loadFilename = None
 
-    checkpoint_iter = 12000
+    checkpoint_iter = 1000
     loadFilename = os.path.join(save_dir, model_name, corpus_name,
                                 '{}-{}_{}'.format(encoder_n_layers, decoder_n_layers, hidden_size),
                                '{}_checkpoint.tar'.format(checkpoint_iter))

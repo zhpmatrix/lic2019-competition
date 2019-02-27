@@ -116,7 +116,7 @@ def trainIters(model_name, checkpoint, device, teacher_forcing_ratio, hidden_siz
 
         # Save checkpoint
         if (iteration % save_every == 0):
-            directory = os.path.join(save_dir, model_name, corpus_name, '{}-{}_{}'.format(encoder_n_layers, decoder_n_layers, hidden_size))
+            directory = os.path.join(save_dir, corpus_name, '{}-{}_{}'.format(encoder_n_layers, decoder_n_layers, hidden_size))
             if not os.path.exists(directory):
                 os.makedirs(directory)
             torch.save({
@@ -161,7 +161,7 @@ def evaluateInput(encoder, decoder, searcher, voc, device):
             # Check if it is quit case
             if input_sentence == 'q' or input_sentence == 'quit': break
             # Normalize sentence
-            input_sentence = normalizeString(input_sentence)
+            #input_sentence = normalizeString(input_sentence)
             # Evaluate sentence
             output_words = evaluate(encoder, decoder, searcher, voc, device, input_sentence)
             # Format and print response sentence

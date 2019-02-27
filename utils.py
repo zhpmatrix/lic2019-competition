@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import codecs
 
 # Splits each line of the file into a dictionary of fields
@@ -76,8 +77,23 @@ def get_format_movie_lines(corpus):
         for pair in extractSentencePairs(conversations):
             writer.writerow(pair)
 
-if __name__ == '__main__':
-    corpus_name = "cornell-movie-dialogs-corpus"
-    corpus = os.path.join("../../public_data", corpus_name)
-    get_format_movie_lines(corpus)
+def get_format_lic_data(corpus):
+    datafile = os.path.join(corpus, "train_part.txt")
+    formatfile = os.path.join(corpus, "formatted_train_part.txt")
+    with open(datafile, 'r')  as freader:
+        lines = freader.readlines()
+    with open(formatfile, 'w') as fwriter:
+        for line in lines:
+            conversation = json.loads(line)['conversation']
+            for i in range(len(conversation)-1):
+                fwriter.write('\t'.join([conversation[i],conversation[i+1]])+'\n')
+            
 
+if __name__ == '__main__':
+    #corpus_name = "cornell-movie-dialogs-corpus"
+    #corpus = os.path.join("../../public_data", corpus_name)
+    #get_format_movie_lines(corpus)
+    
+    corpus_name = "lic2019"
+    corpus = os.path.join("../../public_data", corpus_name)
+    get_format_lic_data(corpus)
