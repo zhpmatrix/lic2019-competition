@@ -8,12 +8,16 @@ def maskNLLLoss(inp, target, mask, device):
     loss = loss.to(device)
     return loss, nTotal.item()
 
-
-def train(input_variable, device, teacher_forcing_ratio, lengths, target_variable, mask, max_target_len, encoder, decoder, embedding,
-          encoder_optimizer, decoder_optimizer, batch_size, clip, max_length=MAX_LENGTH):
+def train(training_batch, device, teacher_forcing_ratio, encoder, kg_encoder, decoder, embedding, encoder_optimizer, kg_encoder_optimizer, decoder_optimizer, batch_size, clip, max_length=MAX_LENGTH):
+    conversation_inp, conversation_lengths, goal_inp, goal_lengths, knowledge_inp, knowledge_lengths, output, mask, max_target_len = training_batch
+    
+    input_variable = conversation_inp
+    target_variable = output
+    lengths = conversation_lengths
 
     # Zero gradients
     encoder_optimizer.zero_grad()
+    kg_encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
 
     # Set device options
@@ -26,16 +30,42 @@ def train(input_variable, device, teacher_forcing_ratio, lengths, target_variabl
     loss = 0
     print_losses = []
     n_totals = 0
-
+    
     # Forward pass through encoder
     encoder_outputs, encoder_hidden = encoder(input_variable, lengths)
-
+    
+    batch_kg_goal_encoder_outputs = []
+    batch_kg_goal_encoder_hidden  = []
+    for i in range(batch_size):
+        kg_goal_encoder_outputs, kg_goal_encoder_hidden = kg_encoder(goal_inp[i].to(device), goal_lengths[i].to(device))
+        batch_kg_goal_encoder_outputs.append(kg_goal_encoder_outputs)
+        batch_kg_goal_encoder_hidden.append(kg_goal_encoder_hidden)
+    
+    batch_kg_goal_encoder_hidden_list  = []
+    for i in range(batch_size):
+        batch_kg_goal_encoder_hidden_list.append( torch.sum(batch_kg_goal_encoder_hidden[i][:decoder.n_layers], dim=1, keepdim=True) )
+    batch_kg_goal_encoder_hidden = torch.cat(batch_kg_goal_encoder_hidden_list, dim=1)
+    
+    
+    batch_kg_encoder_outputs = []
+    batch_kg_encoder_hidden  = []
+    for i in range(batch_size):
+        kg_encoder_outputs, kg_encoder_hidden = kg_encoder(knowledge_inp[i].to(device), knowledge_lengths[i].to(device))
+        batch_kg_encoder_outputs.append(kg_encoder_outputs)
+        batch_kg_encoder_hidden.append(kg_encoder_hidden)
+    
+    batch_kg_encoder_hidden_list  = []
+    for i in range(batch_size):
+        batch_kg_encoder_hidden_list.append( batch_kg_encoder_hidden[i][:decoder.n_layers])
+    
     # Create initial decoder input (start with SOS tokens for each sentence)
     decoder_input = torch.LongTensor([[SOS_token for _ in range(batch_size)]])
     decoder_input = decoder_input.to(device)
 
+
     # Set initial decoder hidden state to the encoder's final hidden state
-    decoder_hidden = encoder_hidden[:decoder.n_layers]
+    decoder_hidden_ = encoder_hidden[:decoder.n_layers]
+    decoder_hidden = batch_kg_goal_encoder_hidden + decoder_hidden_
 
     # Determine if we are using teacher forcing this iteration
     use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
@@ -44,7 +74,7 @@ def train(input_variable, device, teacher_forcing_ratio, lengths, target_variabl
     if use_teacher_forcing:
         for t in range(max_target_len):
             decoder_output, decoder_hidden = decoder(
-                decoder_input, decoder_hidden, encoder_outputs
+                decoder_input, decoder_hidden, batch_kg_encoder_hidden_list,encoder_outputs,
             )
             # Teacher forcing: next input is current target
             decoder_input = target_variable[t].view(1, -1)
@@ -56,7 +86,7 @@ def train(input_variable, device, teacher_forcing_ratio, lengths, target_variabl
     else:
         for t in range(max_target_len):
             decoder_output, decoder_hidden = decoder(
-                decoder_input, decoder_hidden, encoder_outputs
+                decoder_input, decoder_hidden, batch_kg_encoder_hidden_list, encoder_outputs
             )
             # No teacher forcing: next input is decoder's own current output
             _, topi = decoder_output.topk(1)
@@ -73,17 +103,19 @@ def train(input_variable, device, teacher_forcing_ratio, lengths, target_variabl
 
     # Clip gradients: gradients are modified in place
     _ = torch.nn.utils.clip_grad_norm_(encoder.parameters(), clip)
+    _ = torch.nn.utils.clip_grad_norm_(kg_encoder.parameters(), clip)
     _ = torch.nn.utils.clip_grad_norm_(decoder.parameters(), clip)
 
     # Adjust model weights
     encoder_optimizer.step()
+    kg_encoder_optimizer.step()
     decoder_optimizer.step()
 
     return sum(print_losses) / n_totals
 
 
 
-def trainIters(model_name, checkpoint, device, teacher_forcing_ratio, hidden_size, voc, pairs, encoder, decoder, encoder_optimizer, decoder_optimizer, embedding, encoder_n_layers, decoder_n_layers, save_dir, n_iteration, batch_size, print_every, save_every, clip, corpus_name, loadFilename):
+def trainIters(model_name, checkpoint, device, teacher_forcing_ratio, hidden_size, voc, pairs, encoder, kg_encoder, decoder, encoder_optimizer, kg_encoder_optimizer, decoder_optimizer, embedding, encoder_n_layers, decoder_n_layers, save_dir, n_iteration, batch_size, print_every, save_every, clip, corpus_name, loadFilename):
 
     # Load batches for each iteration
     training_batches = [batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
@@ -101,11 +133,9 @@ def trainIters(model_name, checkpoint, device, teacher_forcing_ratio, hidden_siz
     for iteration in range(start_iteration, n_iteration + 1):
         training_batch = training_batches[iteration - 1]
         # Extract fields from batch
-        input_variable, lengths, target_variable, mask, max_target_len = training_batch
-
+        #input_variable, lengths, target_variable, mask, max_target_len = training_batch
         # Run a training iteration with batch
-        loss = train(input_variable, device, teacher_forcing_ratio, lengths, target_variable, mask, max_target_len, encoder,
-                     decoder, embedding, encoder_optimizer, decoder_optimizer, batch_size, clip)
+        loss = train(training_batch, device, teacher_forcing_ratio, encoder, kg_encoder, decoder, embedding, encoder_optimizer, kg_encoder_optimizer, decoder_optimizer, batch_size, clip)
         print_loss += loss
 
         # Print progress
@@ -122,16 +152,15 @@ def trainIters(model_name, checkpoint, device, teacher_forcing_ratio, hidden_siz
             torch.save({
                 'iteration': iteration,
                 'en': encoder.state_dict(),
+                'kg_en': kg_encoder.state_dict(),
                 'de': decoder.state_dict(),
                 'en_opt': encoder_optimizer.state_dict(),
+                'kg_en_opt': kg_encoder_optimizer.state_dict(),
                 'de_opt': decoder_optimizer.state_dict(),
                 'loss': loss,
                 'voc_dict': voc.__dict__,
                 'embedding': embedding.state_dict()
             }, os.path.join(directory, '{}_{}.tar'.format(iteration, 'checkpoint')))
-
-
-
 
 
 def evaluate(encoder, decoder, searcher, voc, device, sentence,max_length=MAX_LENGTH):
