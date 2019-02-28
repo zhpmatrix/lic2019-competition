@@ -10,7 +10,7 @@ PAD_token = 0  # Used for padding short sentences
 SOS_token = 1  # Start-of-sentence token
 EOS_token = 2  # End-of-sentence token
 
-MAX_LENGTH = 80  # Maximum sentence length to consider
+MAX_LENGTH = 20  # Maximum sentence length to consider
 MIN_COUNT = 5    # Minimum word count threshold for trimming
 
 class Voc:
@@ -82,16 +82,20 @@ def readVocs(datafile, corpus_name):
     # Read the file and split into lines
     lines = open(datafile, encoding='utf-8').\
         read().strip().split('\n')
+    
     # Split every line into pairs and normalize
     #pairs = [[normalizeString(s) for s in l.split('\t')] for l in lines]
-    pairs = [[s for s in l.split('\t')] for l in lines]
+    #pairs = [[s for s in l.split('\t')] for l in lines]
+    #pairs = [[s for s in l.split('|')[0].split('\t')] for l in lines]
+    pairs = [l.split('|') for l in lines]
     voc = Voc(corpus_name)
     return voc, pairs
 
 # Returns True iff both sentences in a pair 'p' are under the MAX_LENGTH threshold
 def filterPair(p):
     # Input sequences need to preserve the last word for EOS token
-    return len(p[0].split(' ')) < MAX_LENGTH and len(p[1].split(' ')) < MAX_LENGTH
+    p_ = p[0].split('\t')
+    return len(p_[0].split(' ')) < MAX_LENGTH and len(p_[1].split(' ')) < MAX_LENGTH
 
 # Filter pairs using filterPair condition
 def filterPairs(pairs):
@@ -105,9 +109,10 @@ def loadPrepareData(corpus, corpus_name, datafile, save_dir):
     pairs = filterPairs(pairs)
     print("Trimmed to {!s} sentence pairs".format(len(pairs)))
     print("Counting words...")
-    for pair in pairs:
-        voc.addSentence(pair[0])
-        voc.addSentence(pair[1])
+    for elem0 in pairs:
+        for elem1 in elem0:
+            for elem2 in elem1.split('\t'):
+                voc.addSentence(elem2)
     print("Counted words:", voc.num_words)
     return voc, pairs
 
@@ -117,8 +122,9 @@ def trimRareWords(voc, pairs, MIN_COUNT):
     # Filter out pairs with trimmed words
     keep_pairs = []
     for pair in pairs:
-        input_sentence = pair[0]
-        output_sentence = pair[1]
+        pair_ = pair[0].split('\t')
+        input_sentence = pair_[0]
+        output_sentence = pair_[1]
         keep_input = True
         keep_output = True
         # Check input sentence
@@ -167,6 +173,15 @@ def inputVar(l, voc):
     padVar = torch.LongTensor(padList)
     return padVar, lengths
 
+def inputVar_(l, voc):
+    padVar = []
+    lengths = []
+    for l_ in l:
+        indexes_batch = [indexesFromSentence(voc, sentence) for sentence in l_]
+        lengths.append(torch.tensor([len(indexes) for indexes in indexes_batch]))
+        padVar.append(torch.LongTensor( zeroPadding(indexes_batch) ) )
+    return padVar, lengths
+
 # Returns padded target sequence tensor, padding mask, and max target length
 def outputVar(l, voc):
     indexes_batch = [indexesFromSentence(voc, sentence) for sentence in l]
@@ -179,14 +194,20 @@ def outputVar(l, voc):
 
 # Returns all items for a given batch of pairs
 def batch2TrainData(voc, pair_batch):
-    pair_batch.sort(key=lambda x: len(x[0].split(" ")), reverse=True)
-    input_batch, output_batch = [], []
+    pair_batch.sort(key=lambda x: len(x[0].split('\t')[0].split(' ')), reverse=True)
+    conversation_input_batch, goal_input_batch, knowledge_input_batch, output_batch = [], [],[],[]
     for pair in pair_batch:
-        input_batch.append(pair[0])
-        output_batch.append(pair[1])
-    inp, lengths = inputVar(input_batch, voc)
+        conversation_input_batch.append(pair[0].split('\t')[0])
+        output_batch.append(pair[0].split('\t')[1])
+        goal_input_batch.append(pair[1].split('\t'))
+        knowledge_input_batch.append(pair[2].split('\t'))
+    
+    conversation_inp, conversation_lengths = inputVar(conversation_input_batch, voc)
+    goal_inp, goal_lengths = inputVar_(goal_input_batch, voc)
+    knowledge_inp, knowledge_lengths = inputVar_(knowledge_input_batch, voc)
+    
     output, mask, max_target_len = outputVar(output_batch, voc)
-    return inp, lengths, output, mask, max_target_len
+    return conversation_inp, conversation_lengths, goal_inp, goal_lengths, knowledge_inp, knowledge_lengths, output, mask, max_target_len
 
 if __name__ == '__main__':
     
@@ -203,10 +224,9 @@ if __name__ == '__main__':
     voc, pairs = loadPrepareData(corpus, corpus_name, datafile, save_dir)
     
     # Trim voc and pairs
-    pairs = trimRareWords(voc, pairs, MIN_COUNT)
+    #pairs = trimRareWords(voc, pairs, MIN_COUNT)
     
     # Example for validation
     small_batch_size = 5
     batches = batch2TrainData(voc, [random.choice(pairs) for _ in range(small_batch_size)])
-    input_variable, lengths, target_variable, mask, max_target_len = batches
-
+    pass
