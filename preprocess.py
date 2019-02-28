@@ -178,6 +178,7 @@ def inputVar_(l, voc):
     lengths = []
     for l_ in l:
         indexes_batch = [indexesFromSentence(voc, sentence) for sentence in l_]
+        indexes_batch.sort(key=lambda x: len(x), reverse=True)
         lengths.append(torch.tensor([len(indexes) for indexes in indexes_batch]))
         padVar.append(torch.LongTensor( zeroPadding(indexes_batch) ) )
     return padVar, lengths
