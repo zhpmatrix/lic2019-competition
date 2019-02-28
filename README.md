@@ -29,7 +29,13 @@ are respectively the number of distinct unigrams and bigrams divided by total nu
 
 #### 五.想法实现
 
-目前，重构了PyTorch官方的Chatbot的Tutorial代码，将各个模块解耦出来，顺带发现了一个Bug。在此基础上，准备实现一个baseline，[代码地址](https://github.com/zhpmatrix/lic2019-competition)这里，但是目前还不清楚怎样将知识图谱的信息添加到pipeline中。
+目前，重构了PyTorch官方的Chatbot的Tutorial代码，将各个模块解耦出来，顺带发现了一个Bug。在此基础上，准备实现一个baseline，[代码地址](https://github.com/zhpmatrix/lic2019-competition)
+
+实现思路上，主要参考论文《A Knowledge-Grounded Neural Conversation Model》,包括两个主要部分：
+
+第一：如何将知识图谱的信息嵌入到模型中；
+
+第二: memory机制的实现；
 
 参考：
 
