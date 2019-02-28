@@ -86,7 +86,7 @@ class LuongAttnDecoderRNN(nn.Module):
         self.embedding_dropout = nn.Dropout(dropout)
         self.gru = nn.GRU(hidden_size, hidden_size, n_layers, dropout=(0 if n_layers == 1 else dropout))
         self.concat = nn.Linear(hidden_size * 4, hidden_size)
-        
+          
         self.concatA = nn.Linear(hidden_size * 2, hidden_size * 2)
         self.concatC = nn.Linear(hidden_size * 2, hidden_size * 2)
         
@@ -99,7 +99,8 @@ class LuongAttnDecoderRNN(nn.Module):
         # Get embedding of current input word
         embedded = self.embedding(input_step)
         embedded = self.embedding_dropout(embedded)
-        
+        #import pdb
+        #pdb.set_trace()
         # Forward through unidirectional GRU
         rnn_output, hidden = self.gru(embedded, last_hidden)
         # Calculate attention weights from the current GRU output
@@ -122,7 +123,6 @@ class LuongAttnDecoderRNN(nn.Module):
             o = torch.matmul(pi,ci) 
             o_list.append(o)
         kg_context = torch.stack(o_list)
-        
         concat_input = torch.cat((rnn_output, context, kg_context), 1)
         concat_output = torch.tanh(self.concat(concat_input))
         # Predict next word using Luong eq. 6
@@ -152,10 +152,14 @@ class GreedySearchDecoder(nn.Module):
         # Initialize tensors to append decoded words to
         all_tokens = torch.zeros([0], device=self.device, dtype=torch.long)
         all_scores = torch.zeros([0], device=self.device)
+       
+        # Placeholder(knowledge input)
+        kg_encoder_hidden_list = [torch.zeros([2,1,500],device=self.device)]
+        
         # Iteratively decode one word token at a time
         for _ in range(max_length):
             # Forward pass through decoder
-            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, encoder_outputs)
+            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, kg_encoder_hidden_list, encoder_outputs)
             # Obtain most likely word token and its softmax score
             decoder_scores, decoder_input = torch.max(decoder_output, dim=1)
             # Record token and score
