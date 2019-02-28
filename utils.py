@@ -84,10 +84,33 @@ def get_format_lic_data(corpus):
         lines = freader.readlines()
     with open(formatfile, 'w') as fwriter:
         for line in lines:
-            conversation = json.loads(line)['conversation']
-            for i in range(len(conversation)-1):
-                fwriter.write('\t'.join([conversation[i],conversation[i+1]])+'\n')
+            json_line = json.loads(line)
+            conversation = json_line['conversation']
+            goal         = json_line['goal']
+            knowledge    = json_line['knowledge']
             
+            knowledge_keys = set()
+            for k in range(len(knowledge)):
+                knowledge_keys.add(knowledge[k][0])
+            
+            goal_ = []
+            for j in range(len(goal)):
+                goal_.append( ' '.join(goal[j]) )
+            
+            for i in range(len(conversation)-1):
+                sample = []
+                sample.append('\t'.join([conversation[i],conversation[i+1]]))
+                sample.append('\t'.join(goal_))
+            
+                knowledge_ = []
+                for key in knowledge_keys:
+                    if conversation[i].find(key) != -1:
+                        for p in range(len(knowledge)):
+                            if ' '.join(knowledge[p]).find(key) != -1:
+                                knowledge_.append(' '.join(knowledge[p]))
+                    break
+                sample.append('\t'.join(knowledge_))
+                fwriter.write('|'.join(sample)+'\n')
 
 if __name__ == '__main__':
     #corpus_name = "cornell-movie-dialogs-corpus"
