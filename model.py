@@ -85,16 +85,21 @@ class LuongAttnDecoderRNN(nn.Module):
         self.embedding = embedding
         self.embedding_dropout = nn.Dropout(dropout)
         self.gru = nn.GRU(hidden_size, hidden_size, n_layers, dropout=(0 if n_layers == 1 else dropout))
-        self.concat = nn.Linear(hidden_size * 2, hidden_size)
+        self.concat = nn.Linear(hidden_size * 4, hidden_size)
+        
+        self.concatA = nn.Linear(hidden_size * 2, hidden_size * 2)
+        self.concatC = nn.Linear(hidden_size * 2, hidden_size * 2)
+        
         self.out = nn.Linear(hidden_size, output_size)
 
         self.attn = Attn(attn_model, hidden_size)
 
-    def forward(self, input_step, last_hidden, encoder_outputs):
+    def forward(self, input_step, last_hidden, kg_hidden_list, encoder_outputs):
         # Note: we run this one step (word) at a time
         # Get embedding of current input word
         embedded = self.embedding(input_step)
         embedded = self.embedding_dropout(embedded)
+        
         # Forward through unidirectional GRU
         rnn_output, hidden = self.gru(embedded, last_hidden)
         # Calculate attention weights from the current GRU output
@@ -104,7 +109,21 @@ class LuongAttnDecoderRNN(nn.Module):
         # Concatenate weighted context vector and GRU output using Luong eq. 5
         rnn_output = rnn_output.squeeze(0)
         context = context.squeeze(1)
-        concat_input = torch.cat((rnn_output, context), 1)
+        
+        last_hidden = torch.cat([last_hidden[0,:,:], last_hidden[1,:,:]],dim=1) 
+        
+        o_list = []
+        for i in range(len(kg_hidden_list)):
+            kg_list = kg_hidden_list[i]
+            kg_list_ = torch.cat([kg_list[0,:,:], kg_list[1,:,:]],dim=1) 
+            mi = self.concatA(kg_list_)
+            ci = self.concatC(kg_list_) 
+            pi = F.softmax(torch.matmul(last_hidden[i,:],mi.transpose(0,1)))
+            o = torch.matmul(pi,ci) 
+            o_list.append(o)
+        kg_context = torch.stack(o_list)
+        
+        concat_input = torch.cat((rnn_output, context, kg_context), 1)
         concat_output = torch.tanh(self.concat(concat_input))
         # Predict next word using Luong eq. 6
         output = self.out(concat_output)
