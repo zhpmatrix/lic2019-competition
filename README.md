@@ -37,6 +37,17 @@ are respectively the number of distinct unigrams and bigrams divided by total nu
 
 第二: memory机制的实现；
 
+
+补充：
+
+IJCAI16的文章《Neural Generative Question Answering》的3.2节提出了两种方式用于输入和KG的交互：
+
+第一: Bilinear Model
+
+第二: CNN-based Matching Model
+
+
+
 参考：
 
 1.[第六届全国社会媒体处理大会-SMP2017中文人机对话技术评测(ECDT)](http://ir.hit.edu.cn/SMP2017-ECDT)
