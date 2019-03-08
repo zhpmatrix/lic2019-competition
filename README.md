@@ -59,3 +59,6 @@ IJCAI16的文章《Neural Generative Question Answering》的3.2节提出了两�
 3.《A Persona-Based Neural Conversation Model》
 
 4.[chatbot tutorial with pytorch](https://pytorch.org/tutorials/beginner/chatbot_tutorial.html)
+
+
+5.[2018JDDC的对话比赛亚军方案](https://github.com/Dikea/Dialog-System-with-Task-Retrieval-and-Seq2seq)
