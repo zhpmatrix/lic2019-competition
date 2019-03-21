@@ -62,3 +62,7 @@ IJCAI16的文章《Neural Generative Question Answering》的3.2节提出了两�
 
 
 5.[2018JDDC的对话比赛亚军方案](https://github.com/Dikea/Dialog-System-with-Task-Retrieval-and-Seq2seq)
+
+6.[机器如何猜你所想？阿里小蜜预测平台解密](https://102.alibaba.com/detail?id=193)
+
+7.[拆开阿里小蜜的内核，看智能人机交互的实现逻辑](https://102.alibaba.com/detail?id=114)
