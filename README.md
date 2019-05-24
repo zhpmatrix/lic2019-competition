@@ -50,6 +50,8 @@ IJCAI16的文章《Neural Generative Question Answering》的3.2节提出了两�
 
 参考：
 
+0.www2018,《DKN: Deep Knowledge-Aware Network for News Recommendation》
+
 1.[第六届全国社会媒体处理大会-SMP2017中文人机对话技术评测(ECDT)](http://ir.hit.edu.cn/SMP2017-ECDT)
 
 包含两个任务：用户意图领域分类和特定域任务型人机对话在线评测
